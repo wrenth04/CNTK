@@ -11,7 +11,7 @@ import numpy as np
 abs_path = os.path.dirname(os.path.abspath(__file__))
 
 def test_text_format(tmpdir):
-    from cntk.io import text_format_minibatch_source, StreamConfiguration, MinibatchSource
+    from cntk.io import CTFDeserializer, MinibatchSource, StreamDef, StreamDefs
 
     mbdata = r'''0	|x 560:1	|y 1 0 0 0 0
 0	|x 0:1
@@ -28,9 +28,11 @@ def test_text_format(tmpdir):
     input_dim = 1000
     num_output_classes = 5
 
-    mb_source = text_format_minibatch_source(tmpfile, [
-                    StreamConfiguration( 'features', input_dim, True, 'x' ),
-                    StreamConfiguration( 'labels', num_output_classes, False, 'y')])
+    mb_source = MinibatchSource(CTFDeserializer(tmpfile, StreamDefs(
+         features  = StreamDef(field='x', shape=input_dim, is_sparse=True),
+         labels    = StreamDef(field='y', shape=num_output_classes, is_sparse=False)
+       )))
+
     assert isinstance(mb_source, MinibatchSource)
 
     features_si = mb_source.stream_info('features')
@@ -160,17 +162,13 @@ def test_minibatch(tmpdir):
     with open(tmpfile, 'w') as f:
         f.write(mbdata)
 
-    feature_stream_name = 'features'
-    labels_stream_name = 'labels'
-
-    from cntk.io import text_format_minibatch_source, StreamConfiguration
-    mb_source = text_format_minibatch_source(tmpfile, [
-        StreamConfiguration(feature_stream_name, 1, False, 'S0'),
-        StreamConfiguration(labels_stream_name, 1, False, 'S1')],
-        randomize=False)
-
-    features_si = mb_source.stream_info(feature_stream_name)
-    labels_si = mb_source.stream_info(labels_stream_name)
+    from cntk.io import CTFDeserializer, MinibatchSource, StreamDef, StreamDefs
+    mb_source = MinibatchSource(CTFDeserializer(tmpfile, StreamDefs(
+        features  = StreamDef(field='S0', shape=1),
+        labels    = StreamDef(field='S1', shape=1))))
+     
+    features_si = mb_source.stream_info('features')
+    labels_si = mb_source.stream_info('labels')
     
     mb = mb_source.next_minibatch(1000)
     assert mb[features_si].num_sequences == 2
