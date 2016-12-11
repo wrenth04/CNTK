@@ -535,6 +535,9 @@ class Value(cntk_py.Value):
                 raise ValueError('dtype object is not supported. If this is a batch '
                         'of sequences, you need to pass them as a pure-Python list '
                         'of NumPy arrays')
+
+            # FIXME if not seq_starts: directly pass it to Value constructor
+
             batch = list(batch)
 
         if not isinstance(batch, list):
@@ -547,8 +550,11 @@ class Value(cntk_py.Value):
         # move it to the requested device.
         cpu_dev = cpu()
         for sample in batch:
-            # if isinstance(sample, list):
-                # sample = np.asarray(sample)
+            if isinstance(sample, list):
+                sample = np.asarray(sample, dtype=var.dtype)
+                if sample.dtype != var.dtype:
+                    raise ValueError('could not convert sample data to '
+                            'NumPy array')
 
             if not (isinstance(sample, np.ndarray) or sparse.issparse(sample)):
                 raise ValueError('sample type "%s" is not supported. Please '
