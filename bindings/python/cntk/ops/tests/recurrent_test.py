@@ -17,21 +17,20 @@ from .ops_test_utils import _test_binary_op, AA, precision, PRECISION_TO_TYPE,\
 from .. import parameter
 
 SEQUENCES = [
-    # (number of elements, shape of tensor, time step, initial state)
-    (24.0, (4, 3, 2), 1, 0.1),
-    (32.0, (4, 4, 2), 1, 0.1),
-    (32.0, (2, 2, 4, 2), 1, 0.5),
-    (32.0, (2, 2, 4, 2), 2, 0.3)
+    # (shape of batch, time step, initial state)
+    ((1, 4, 3, 2), 1, 0.1),
+    #((2, 2, 4, 2), 1, 0.5),
+    # ((2, 2, 4, 2), 2, 0.3)
 ]
 
-@pytest.mark.parametrize("tensor_number_of_values, input_size, time_step, initial_state", SEQUENCES)
-def test_op_future_value(tensor_number_of_values, input_size, time_step, initial_state, device_id, precision):
+@pytest.mark.parametrize("input_size, time_step, initial_state", SEQUENCES)
+def test_op_future_value(input_size, time_step, initial_state, device_id, precision):
     dt = PRECISION_TO_TYPE[precision]
-
-    # Creating array with sequence 1, 2, 3... up to tensor_number_of_values
-    x = np.reshape(np.arange(tensor_number_of_values, dtype=dt), input_size)
-    total_elements = np.product(list(input_size))
-    elements_to_roll = total_elements - (np.product(list(input_size)[1:]) * time_step)
+    number_of_values = np.prod(input_size)
+    # Creating array with sequence 0, 1, 2, ... up to number_of_values
+    x = np.reshape(np.arange(number_of_values, dtype=dt), input_size)
+    total_elements = np.product(input_size)
+    elements_to_roll = total_elements - (np.product(input_size[1:]) * time_step)
     x_rolled = np.roll(AA(x, dtype=dt), elements_to_roll)
     np.put(x_rolled, range(elements_to_roll, total_elements), initial_state)
 
@@ -40,7 +39,7 @@ def test_op_future_value(tensor_number_of_values, input_size, time_step, initial
     backward = np.ones_like(x_rolled, dtype=dt)
     np.put(backward, range(total_elements - elements_to_roll), 0.0)
 
-    a = I(shape=x.shape[1:],
+    a = I(shape=x.shape[2:],
       dtype=sanitize_dtype_cntk(precision),
       needs_gradient=True,
       name='a')
@@ -58,25 +57,26 @@ def test_op_future_value(tensor_number_of_values, input_size, time_step, initial
                 x, expected_forward, expected_backward,
                 device_id=device_id, precision=precision)
 
-@pytest.mark.parametrize("tensor_number_of_values, input_size, time_step, initial_state", SEQUENCES)
-def test_op_past_value(tensor_number_of_values, input_size, time_step, initial_state, device_id, precision):
+@pytest.mark.parametrize("input_size, time_step, initial_state", SEQUENCES)
+def test_op_past_value(input_size, time_step, initial_state, device_id, precision):
     dt = PRECISION_TO_TYPE[precision]
-
-    x = np.reshape(np.arange(tensor_number_of_values, dtype=dt), input_size)
-    total_elements = np.product(list(input_size))
-    elements_to_roll = (np.product(list(input_size)[1:]) * time_step)
+    number_of_values = np.prod(input_size)
+    # Creating array with sequence 0, 1, 2, ... up to number_of_values
+    x = np.reshape(np.arange(number_of_values, dtype=dt), input_size)
+    total_elements = np.product(input_size)
+    elements_to_roll = total_elements - np.product(input_size[1:]) * time_step
     x_rolled = np.roll(AA(x, dtype=dt), elements_to_roll)
-    np.put(x_rolled, range(elements_to_roll), initial_state)
+    np.put(x_rolled, range(elements_to_roll, total_elements), initial_state)
 
-    expected_forward = AA([x_rolled])
+    expected_forward = AA(x_rolled, dtype=dt)
 
-    a = I(shape=x.shape[1:],
+    backward = np.ones_like(x_rolled, dtype=dt)
+    np.put(backward, range(total_elements - elements_to_roll), 0.0)
+
+    a = I(shape=x.shape[2:],
       dtype=sanitize_dtype_cntk(precision),
       needs_gradient=True,
       name='a')
-
-    backward = np.ones_like(x_rolled, dtype=dt)
-    np.put(backward, range(total_elements - elements_to_roll, total_elements), 0.0)
 
     expected_backward = {
         a: [backward]
@@ -90,3 +90,4 @@ def test_op_past_value(tensor_number_of_values, input_size, time_step, initial_s
     unittest_helper(input_op_input,
                 x, expected_forward, expected_backward,
                 device_id=device_id, precision=precision)
+
