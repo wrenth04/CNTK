@@ -18,7 +18,7 @@ def _check(init, name):
     assert np.var(val) > 0.01, name
 
 def test_initializer_init(device_id):
-    from cntk.ops.ops_test_utils import cntk_device
+    from cntk.ops.tests.ops_test_utils import cntk_device
     from cntk import cntk_py
     cntk_py.always_allow_setting_default_device()
     from cntk.device import set_default_device
