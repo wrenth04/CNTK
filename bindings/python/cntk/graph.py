@@ -34,6 +34,7 @@ def depth_first_search(node, visitor):
             try:
                 if node.is_output:
                     stack.append(node.owner)
+                    continue
             except AttributeError:
                 pass
 
