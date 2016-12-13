@@ -122,7 +122,7 @@ struct Index
 class Indexer
 {
 public:
-    Indexer(bool isPrimary, FILE* file, bool skipSequenceIds = false, char streamPrefix = '|', size_t chunkSize = 32 * 1024 * 1024, size_t bufferSize = 2 * 1024 * 1024);
+    Indexer(FILE* file, bool isPrimary, bool skipSequenceIds = false, char streamPrefix = '|', size_t chunkSize = 32 * 1024 * 1024, size_t bufferSize = 2 * 1024 * 1024);
 
     // Reads the input file, building and index of chunks and corresponding
     // sequences.
