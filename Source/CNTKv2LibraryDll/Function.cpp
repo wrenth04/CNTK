@@ -53,8 +53,8 @@ namespace CNTK
 
             if (m_rootFunction == nullptr && outputVar.IsOutput() && outputVar.m_dataFields->m_ownerFunction == this)
             {
-                // in case of a primitive function, set uid of output vars to owner function uid + "_Output_" + output index.
-                outputVar.m_dataFields->m_uid = m_uid + L"_" + VariableKindName(outputVar.Kind()) + L"_" + std::to_wstring(m_outputs.size());
+                // in case of a primitive function, set uid of output vars to owner function uid + output index.
+                outputVar.m_dataFields->m_uid = m_uid + L"_" + std::to_wstring(m_outputs.size());
             }
 
             m_outputs.push_back(outputVar);
