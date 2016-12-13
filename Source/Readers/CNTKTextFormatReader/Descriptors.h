@@ -9,7 +9,7 @@
 
 namespace Microsoft { namespace MSR { namespace CNTK {
 
-    // Stream (input) metadata. This text-readers specific descriptor adds two
+    // Stream (input) metadata. This text-reader specific descriptor adds two
     // additional fields: stream alias (name prefix in each sample) and expected
     // sample dimension.
     struct StreamDescriptor : StreamDescription
