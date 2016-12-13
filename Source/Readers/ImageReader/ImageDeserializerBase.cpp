@@ -80,6 +80,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
         auto imageData = make_shared<ImageSequenceData>();
         imageData->m_sampleLayout = std::make_shared<TensorShape>(dimensions.AsTensorShape(HWC));
         imageData->m_id = sequenceId;
+        imageData->m_image = image;
         imageData->m_numberOfSamples = 1;
         imageData->m_elementType = dataType;
         result.push_back(imageData);

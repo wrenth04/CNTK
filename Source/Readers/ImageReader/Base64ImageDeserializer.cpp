@@ -122,18 +122,18 @@ namespace Microsoft { namespace MSR { namespace CNTK {
         return true;
     }
 
-    Base64ImageDeserializer::Base64ImageDeserializer(CorpusDescriptorPtr corpus, const ConfigParameters& config) : ImageDeserializerBase(corpus, config)
+    Base64ImageDeserializer::Base64ImageDeserializer(CorpusDescriptorPtr corpus, const ConfigParameters& config, bool isPrimary) : ImageDeserializerBase(corpus, config)
     {
         auto mapFile = config(L"file");
         bool hasSequenceKeys = HasSequenceKeys(mapFile);
         m_fileName.assign(mapFile.begin(), mapFile.end());
 
-        attempt(5, [this, hasSequenceKeys, corpus]()
+        attempt(5, [this, hasSequenceKeys, corpus, isPrimary]()
         {
             if (!m_dataFile || ferror(m_dataFile.get()) != 0)
                 m_dataFile.reset(fopenOrDie(m_fileName, L"rbS"), [](FILE* f) { if (f) fclose(f); });
 
-            m_indexer = make_unique<Indexer>(m_dataFile.get(), !hasSequenceKeys);
+            m_indexer = make_unique<Indexer>(m_dataFile.get(), isPrimary, !hasSequenceKeys);
             m_indexer->Build(corpus);
         });
     }

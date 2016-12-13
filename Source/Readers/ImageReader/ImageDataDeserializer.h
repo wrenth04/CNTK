@@ -54,20 +54,8 @@ private:
 
     class ImageChunk;
 
-    // A helper class for generation of type specific labels (currently float/double only).
-    LabelGeneratorPtr m_labelGenerator;
-
     // Sequence descriptions for all input data.
     std::vector<ImageSequenceDescription> m_imageSequences;
-
-    // Mapping of logical sequence key into sequence description.
-    std::map<size_t, size_t> m_keyToSequence;
-
-    // Precision required by the network.
-    ElementType m_precision;
-
-    // whether images shall be loaded in grayscale 
-    bool m_grayscale;
 
     // Not using nocase_compare here as it's not correct on Linux.
     using PathReaderMap = std::unordered_map<std::string, std::shared_ptr<ByteReader>>;
@@ -80,7 +68,6 @@ private:
     SeqReaderMap m_readers;
 
     std::unique_ptr<FileByteReader> m_defaultReader;
-    int m_verbosity;
 };
 
 }}}

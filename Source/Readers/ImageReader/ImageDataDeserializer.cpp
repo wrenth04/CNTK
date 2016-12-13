@@ -13,13 +13,12 @@
 #include "ConfigUtil.h"
 #include "TimerUtility.h"
 #include "ImageTransformers.h"
-#include "SequenceData.h"
 #include "ImageUtil.h"
 
 namespace Microsoft { namespace MSR { namespace CNTK {
 
 // For image, chunks correspond to a single image.
-class ImageDataDeserializer::ImageChunk : public Chunk, public std::enable_shared_from_this<ImageChunk>
+class ImageDataDeserializer::ImageChunk : public Chunk
 {
     ImageSequenceDescription m_description;
     ImageDataDeserializer& m_parent;
