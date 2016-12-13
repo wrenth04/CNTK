@@ -5,7 +5,7 @@
 
 #pragma once
 #include <opencv2/core/mat.hpp>
-#include "DataDeserializerBase.h"
+#include "ImageDeserializerBase.h"
 #include "Config.h"
 #include "ByteReader.h"
 #include <unordered_map>
@@ -19,7 +19,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 // All sequences consist only of a single sample (image/label).
 // For features it uses dense storage format with different layout (dimensions) per sequence.
 // For labels it uses the csc sparse storage format.
-class ImageDataDeserializer : public DataDeserializerBase
+class ImageDataDeserializer : public ImageDeserializerBase
 {
 public:
     // A new constructor to support new compositional configuration,

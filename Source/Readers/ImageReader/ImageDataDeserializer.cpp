@@ -7,8 +7,6 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include <opencv2/opencv.hpp>
-#include <numeric>
-#include <limits>
 #include "ImageDataDeserializer.h"
 #include "ImageConfigHelper.h"
 #include "StringUtil.h"
@@ -43,25 +41,7 @@ public:
         if (!cvImage.data)
             RuntimeError("Cannot open file '%s'", imageSequence.m_path.c_str());
 
-        // Convert element type.
-        ElementType dataType = ConvertImageToSupportedDataType(cvImage);
-        if (!cvImage.isContinuous())
-            cvImage = cvImage.clone();
-        assert(cvImage.isContinuous());
-
-        ImageDimensions dimensions(cvImage.cols, cvImage.rows, cvImage.channels());
-        image->m_sampleLayout = std::make_shared<TensorShape>(dimensions.AsTensorShape(HWC));
-        image->m_id = sequenceId;
-        image->m_numberOfSamples = 1;
-        image->m_chunk = shared_from_this();
-        image->m_elementType = dataType;
-        result.push_back(image);
-
-        auto label = std::make_shared<CategorySequenceData>();
-        label->m_chunk = shared_from_this();
-        m_parent.m_labelGenerator->CreateLabelFor(imageSequence.m_classId, *label);
-        label->m_numberOfSamples = 1;
-        result.push_back(label);
+        m_parent.PopulateSequenceData(cvImage, imageSequence.m_classId, sequenceId, result);
     }
 
 private:
@@ -82,58 +62,9 @@ private:
 
 // A new constructor to support new compositional configuration,
 // that allows composition of deserializers and transforms on inputs.
-ImageDataDeserializer::ImageDataDeserializer(CorpusDescriptorPtr corpus, const ConfigParameters& config)
+ImageDataDeserializer::ImageDataDeserializer(CorpusDescriptorPtr corpus, const ConfigParameters& config) : ImageDeserializerBase(corpus, config)
 {
-    ConfigParameters inputs = config("input");
-    std::vector<std::string> featureNames = GetSectionsWithParameter("ImageDataDeserializer", inputs, "transforms");
-    std::vector<std::string> labelNames = GetSectionsWithParameter("ImageDataDeserializer", inputs, "labelDim");
-
-    // TODO: currently support only one feature and label section.
-    if (featureNames.size() != 1 || labelNames.size() != 1)
-    {
-        RuntimeError(
-            "ImageReader currently supports a single feature and label stream. '%d' features , '%d' labels found.",
-            static_cast<int>(featureNames.size()),
-            static_cast<int>(labelNames.size()));
-    }
-
-    string precision = (ConfigValue)config("precision", "float");
-    m_precision = AreEqualIgnoreCase(precision, "float") ? ElementType::tfloat : ElementType::tdouble;
-
-    m_verbosity = config(L"verbosity", 0);
-
-    // Feature stream.
-    ConfigParameters featureSection = inputs(featureNames[0]);
-    auto features = std::make_shared<StreamDescription>();
-    features->m_id = 0;
-    features->m_name = msra::strfun::utf16(featureSection.ConfigName());
-    features->m_storageType = StorageType::dense;
-
-    // Due to performance, now we support images of different types.
-    features->m_elementType = ElementType::tvariant;
-    m_streams.push_back(features);
-
-    // Label stream.
-    ConfigParameters label = inputs(labelNames[0]);
-    size_t labelDimension = label("labelDim");
-    auto labels = std::make_shared<StreamDescription>();
-    labels->m_id = 1;
-    labels->m_name = msra::strfun::utf16(label.ConfigName());
-    labels->m_sampleLayout = std::make_shared<TensorShape>(labelDimension);
-    labels->m_storageType = StorageType::sparse_csc;
-    labels->m_elementType = m_precision;
-    m_streams.push_back(labels);
-
-    m_labelGenerator = labels->m_elementType == ElementType::tfloat ?
-        (LabelGeneratorPtr)std::make_shared<TypedLabelGenerator<float>>(labelDimension) :
-        std::make_shared<TypedLabelGenerator<double>>(labelDimension);
-
-    m_grayscale = config(L"grayscale", false);
-
-    // TODO: multiview should be done on the level of randomizer/transformers - it is responsiblity of the
-    // TODO: randomizer to collect how many copies each transform needs and request same sequence several times.
-    bool multiViewCrop = config(L"multiViewCrop", false);
-    CreateSequenceDescriptions(corpus, config(L"file"), labelDimension, multiViewCrop);
+    CreateSequenceDescriptions(corpus, config(L"file"), m_labelGenerator->LabelDimension(), m_multiViewCrop);
 }
 
 // TODO: Should be removed at some point.

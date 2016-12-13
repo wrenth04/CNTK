@@ -7,6 +7,7 @@
 
 #include <opencv2/opencv.hpp>
 #include "SequenceData.h"
+#include <numeric>
 
 namespace Microsoft { namespace MSR { namespace CNTK {
 
@@ -37,6 +38,20 @@ namespace Microsoft { namespace MSR { namespace CNTK {
         return result;
     }
 
+    inline ElementType ConvertImageToSupportedDataType(cv::Mat& image, ElementType defaultElementType)
+    {
+        ElementType resultType;
+        if (!IdentifyElementTypeFromOpenCVType(image.depth(), resultType))
+        {
+            // Could not identify element type.
+            // Natively unsupported image type. Let's convert it to required precision.
+            int requiredType = defaultElementType == ElementType::tfloat ? CV_32F : CV_64F;
+            image.convertTo(image, requiredType);
+            resultType = defaultElementType;
+        }
+        return resultType;
+    }
+
     // A helper interface to generate a typed label in a sparse format for categories.
     // It is represented as a array indexed by the category, containing zero values for all categories the sequence does not belong to,
     // and a single one for a category it belongs to: [ 0 .. 0.. 1 .. 0 ]
@@ -44,6 +59,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
     {
     public:
         virtual void CreateLabelFor(size_t classId, CategorySequenceData& data) = 0;
+        virtual size_t LabelDimension() const = 0;
         virtual ~LabelGenerator() { }
     };
     typedef std::shared_ptr<LabelGenerator> LabelGeneratorPtr;
@@ -64,13 +80,18 @@ namespace Microsoft { namespace MSR { namespace CNTK {
             iota(m_indices.begin(), m_indices.end(), 0);
         }
 
-        virtual void CreateLabelFor(size_t classId, CategorySequenceData& data) override
+        void CreateLabelFor(size_t classId, CategorySequenceData& data) override
         {
             data.m_nnzCounts.resize(1);
             data.m_nnzCounts[0] = 1;
             data.m_totalNnzCount = 1;
             data.m_data = &m_value;
             data.m_indices = &(m_indices[classId]);
+        }
+
+        size_t LabelDimension() const override
+        {
+            return m_indices.size();
         }
 
     private:
