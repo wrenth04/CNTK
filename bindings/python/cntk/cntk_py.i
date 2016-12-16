@@ -46,6 +46,7 @@
 %template() std::vector<CNTK::DeviceDescriptor>;
 %template() std::vector<CNTK::StreamConfiguration>;
 %template() std::vector<std::shared_ptr<CNTK::Function>>;
+%template() std::vector<std::shared_ptr<CNTK::UserFunction>>;
 %template() std::vector<std::shared_ptr<CNTK::Learner>>;
 %template() std::vector<std::shared_ptr<CNTK::DistributedLearner>>;
 %template() std::pair<size_t, double>;
@@ -397,9 +398,6 @@ public:
     #include "numpy/arrayobject.h"
     using namespace CNTK;
 %}
-
-// Callback support
-%feature("director") Callback;
 
 //
 // Exception handling
@@ -782,6 +780,29 @@ public:
 // we need to define a hash function on SwigPyObject.
 //
 
+%define %unordered_set_ref_conversion_director(DATA_TYPE, _SWIG_TYPE)
+
+%typemap(directorin) std::unordered_set<DATA_TYPE>&  {
+    PyObject* container = PyList_New(0);
+    if (container == NULL)
+    {
+        SWIG_exception(SWIG_RuntimeError, "error passing set to Python");
+    }
+    // asdf
+
+    for (auto var : $1)
+    {
+        PyObject *item = SWIG_NewPointerObj(new DATA_TYPE(var), _SWIG_TYPE, SWIG_POINTER_OWN );
+        // No error handling here, because the error will be passed directly to Python
+        PyList_Append(container, item);
+        Py_DECREF(item);
+    }
+
+    $input = container;
+}
+
+%enddef
+
 %define %unordered_set_conversion(DATA_TYPE, _SWIG_TYPE)
 
 %typemap(out) std::unordered_set<CNTK::DATA_TYPE> {
@@ -882,6 +903,9 @@ public:
 %unordered_set_conversion(CNTK::DistributedWorkerDescriptor, SWIGTYPE_p_CNTK__DistributedWorkerDescriptor)
 
 %unordered_set_ref_conversion(CNTK::Variable, SWIGTYPE_p_CNTK__Variable)
+
+%unordered_set_ref_conversion_director(CNTK::Variable, SWIGTYPE_p_CNTK__Variable)
+
 %unordered_set_ref_conversion(CNTK::Parameter, SWIGTYPE_p_CNTK__Parameter)
 %unordered_set_ref_conversion(CNTK::StreamInformation, SWIGTYPE_p_CNTK__StreamInformation)
 %unordered_set_ref_conversion(CNTK::LearnerPtr, SWIGTYPE_p_std__shared_ptrT_CNTK__Learner_t)
@@ -1126,6 +1150,8 @@ public:
     }
 }
 
+// end of NDArrayView
+
 %template(NDArrayViewFloat) CNTK::NDArrayView::NDArrayView<float>;
 %template(NDArrayViewDouble) CNTK::NDArrayView::NDArrayView<double>;
 %template(ConstantFloat) CNTK::Constant::Constant<float>;
@@ -1136,22 +1162,60 @@ public:
 %template(random_uniform_double) CNTK::NDArrayView::RandomUniform<double>;
 %template(DictionaryValueFromDict) CNTK::DictionaryValue::DictionaryValue<CNTK::Dictionary>;
 
-// end of NDArrayView
 
 %template(training_parameter_per_sample_schedule) CNTK::TrainingParameterPerUnitSchedule<double, CNTK::TrainingParameterSchedule<double>::UnitType::Sample>;
 %template(training_parameter_per_minibatch_schedule) CNTK::TrainingParameterPerUnitSchedule<double, CNTK::TrainingParameterSchedule<double>::UnitType::Minibatch>;
 
-//
-// The following callback code is only for testing. Will have to be merged with
-// the operator classes.
-//
+%shared_ptr(CNTK::UserFunction);
+
+// Callback support
+%feature("director") CNTK::UserFunction;
+
+
+// We have to explicitly tell Swig to generate a constructor. 
+// For some reasons, it is confused by CNTK::Function being abstract.
+%feature("notabstract") CNTK::UserFunction;
 %inline %{
-class Callback {
-public:
-    virtual ~Callback() { std::cout << "Callback::~Callback()" << std:: endl; }
-    virtual void forward() { std::cout << "Callback::forward()" << std::endl; }
-    virtual void backward() { std::cout << "Callback::backward()" << std::endl; }
-};
+
+namespace CNTK {
+    class UserFunction : public Function {
+    public:
+
+        UserFunction(const std::vector<Variable>& inputs, const std::wstring& name, const std::wstring& opName)
+            : Function(inputs, GetOutputVariables(inputs), Dictionary(), name), m_opName(opName)
+        { }
+
+        virtual ~UserFunction() { }
+
+        BackPropStatePtr Forward(const std::unordered_map<Variable, ValuePtr>& ,
+            std::unordered_map<Variable, ValuePtr>& ,
+            const DeviceDescriptor& ,
+            const std::unordered_set<Variable>& ) override { NOT_IMPLEMENTED; }
+
+        void Backward(const BackPropStatePtr& ,
+            const std::unordered_map<Variable, ValuePtr>& ,
+            std::unordered_map<Variable, ValuePtr>& ) override { NOT_IMPLEMENTED; }
+
+        const std::wstring& OpName() const override { return m_opName; }
+
+        Dictionary Serialize() const override { NOT_IMPLEMENTED; }
+        size_t CurrentVersion() const override { NOT_IMPLEMENTED; }
+
+        virtual std::vector<Variable> GetOutputVariables(const std::vector<Variable>& inputs) 
+        { 
+            //NOT_IMPLEMENTED; 
+            // auto tempFunc = Times(leftOperand, rightOperand);
+
+            std::vector<Variable> outputs;
+            outputs.push_back(OutputVariable(inputs[0].Shape(), inputs[0].GetDataType(), this, inputs[0].DynamicAxes()));
+
+            return outputs;
+        }
+
+    private:
+        const std::wstring& m_opName;
+    };
+}
 
 %}
 
